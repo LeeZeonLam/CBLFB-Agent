@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.fba.logi</groupId>
+        <artifactId>fba-logi-ai</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>fba-logi-domain</artifactId>
+    <packaging>jar</packaging>
+    <name>FBA LogiAI - Domain</name>
+    <description>领域层：核心业务逻辑、领域模型、领域服务</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.fba.logi</groupId>
+            <artifactId>fba-logi-common</artifactId>
+        </dependency>
+
+        <!-- Spring Context (提供 @Service, @Component 等) -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+        </dependency>
+
+        <!-- Spring TX (提供 @Transactional) -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>

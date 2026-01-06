@@ -1,0 +1,82 @@
+# SkyWalking 告警配置
+rules:
+  # 服务响应时间告警
+  service_resp_time_rule:
+    metrics-name: service_resp_time
+    op: ">"
+    threshold: 3000
+    period: 10
+    count: 3
+    silence-period: 5
+    message: "服务 {name} 响应时间过长，超过 3 秒"
+
+  # 服务成功率告警
+  service_sla_rule:
+    metrics-name: service_sla
+    op: "<"
+    threshold: 9500
+    period: 10
+    count: 2
+    silence-period: 5
+    message: "服务 {name} 成功率低于 95%"
+
+  # 服务 Apdex 告警
+  service_apdex_rule:
+    metrics-name: service_apdex
+    op: "<"
+    threshold: 70
+    period: 10
+    count: 3
+    silence-period: 5
+    message: "服务 {name} 用户体验指数低于 0.7"
+
+  # 端点响应时间告警
+  endpoint_resp_time_rule:
+    metrics-name: endpoint_resp_time
+    threshold: 5000
+    op: ">"
+    period: 10
+    count: 2
+    silence-period: 5
+    message: "端点 {name} 响应时间过长，超过 5 秒"
+
+  # 数据库响应时间告警
+  database_access_resp_time_rule:
+    metrics-name: database_access_resp_time
+    threshold: 1000
+    op: ">"
+    period: 10
+    count: 2
+    silence-period: 5
+    message: "数据库 {name} 响应时间过长，超过 1 秒"
+
+  # 服务实例 JVM 内存告警
+  instance_jvm_memory_heap_max_rule:
+    metrics-name: instance_jvm_memory_heap
+    op: ">"
+    threshold: 800000000
+    period: 10
+    count: 3
+    silence-period: 5
+    message: "实例 {name} 堆内存使用超过 800MB"
+
+  # 服务实例 JVM 线程数告警
+  instance_jvm_thread_live_count_rule:
+    metrics-name: instance_jvm_thread_live_count
+    op: ">"
+    threshold: 300
+    period: 10
+    count: 3
+    silence-period: 5
+    message: "实例 {name} 活跃线程数超过 300"
+
+# Webhook 告警通知
+webhooks:
+  - url: http://alert-webhook:5001/skywalking/webhook
+
+# Composite 告警规则（组合多个指标）
+composite-rules:
+  # 服务响应慢且成功率低
+  slow_and_low_sla_rule:
+    expression: service_resp_time_rule && service_sla_rule
+    message: "服务 {name} 响应慢且成功率低，需要立即关注"

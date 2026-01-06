@@ -1,0 +1,67 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: fba-logi-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+    gateway:
+      # 路由配置
+      routes:
+        # 聊天服务
+        - id: chat-service
+          uri: lb://fba-logi-chat-service
+          predicates:
+            - Path=/api/chat/**
+          filters:
+            - StripPrefix=1
+
+        # 数据服务
+        - id: data-service
+          uri: lb://fba-logi-data-service
+          predicates:
+            - Path=/api/campaigns/**,/api/orders/**,/api/warehouse/**
+          filters:
+            - StripPrefix=1
+
+        # RAG 服务
+        - id: rag-service
+          uri: lb://fba-logi-rag-service
+          predicates:
+            - Path=/api/rag/**
+          filters:
+            - StripPrefix=1
+
+      # 全局跨域配置
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            maxAge: 3600
+
+# 健康检查
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+
+# 日志配置
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    com.fba.logi: DEBUG

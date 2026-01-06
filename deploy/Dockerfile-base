@@ -1,0 +1,28 @@
+# 基础构建镜像（多阶段构建）
+FROM eclipse-temurin:21-jdk-alpine AS builder
+WORKDIR /app
+
+# 复制 Maven 配置和依赖
+COPY pom.xml .
+COPY fba-logi-common/pom.xml fba-logi-common/
+COPY fba-logi-api/pom.xml fba-logi-api/
+COPY fba-logi-domain/pom.xml fba-logi-domain/
+COPY fba-logi-infrastructure/pom.xml fba-logi-infrastructure/
+COPY fba-logi-agent/pom.xml fba-logi-agent/
+COPY fba-logi-app/pom.xml fba-logi-app/
+COPY fba-logi-gateway/pom.xml fba-logi-gateway/
+COPY fba-logi-chat-service/pom.xml fba-logi-chat-service/
+COPY fba-logi-data-service/pom.xml fba-logi-data-service/
+COPY fba-logi-rag-service/pom.xml fba-logi-rag-service/
+
+# 安装 Maven
+RUN apk add --no-cache maven
+
+# 下载依赖（利用缓存）
+RUN mvn dependency:go-offline -B
+
+# 复制源代码
+COPY . .
+
+# 构建项目
+RUN mvn clean package -DskipTests -B

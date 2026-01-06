@@ -1,0 +1,226 @@
+# ====================
+# Maven 构建产物
+# ====================
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+*.jar
+*.war
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Maven 日志
+mvn.log
+
+# ====================
+# IntelliJ IDEA
+# ====================
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# ====================
+# Eclipse
+# ====================
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache
+bin/
+
+# ====================
+# NetBeans
+# ====================
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# ====================
+# VS Code
+# ====================
+.vscode/
+
+# ====================
+# Java 编译产物
+# ====================
+*.class
+*.log
+*.ctxt
+.mtj.tmp/
+*.jar
+*.nar
+*.tar.gz
+*.rar
+
+# JVM 崩溃日志
+hs_err_pid*
+replay_pid*
+
+# ====================
+# Spring Boot
+# ====================
+# 敏感配置文件（包含密钥、密码等）
+**/application-local.yml
+**/application-local.yaml
+**/application-local.properties
+**/application-secret.yml
+**/application-secret.yaml
+**/application-prod.yml
+**/application-prod.yaml
+**/bootstrap-local.yml
+**/bootstrap-prod.yml
+
+# Spring Boot 热部署
+.reloadTrigger
+
+# ====================
+# 日志文件
+# ====================
+logs/
+*.log
+*.log.*
+log/
+
+# ====================
+# 操作系统
+# ====================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.nfs*
+
+# ====================
+# 环境变量 & 敏感信息
+# ====================
+.env
+.env.*
+*.env
+!.env.example
+!**/.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+*.keystore
+secrets/
+credentials/
+
+# ====================
+# Docker
+# ====================
+.docker/
+docker-compose.override.yml
+docker-compose.local.yml
+
+# Docker 数据卷（运行时数据，不应提交）
+deploy/volumes/
+
+# ====================
+# Kubernetes 本地配置
+# ====================
+k8s/*-local.yml
+k8s/*-local.yaml
+k8s/secrets/
+kubeconfig
+.kube/
+
+# ====================
+# 测试相关
+# ====================
+# 测试报告
+test-output/
+surefire-reports/
+failsafe-reports/
+coverage/
+jacoco.exec
+*.exec
+
+# H2 数据库（测试用）
+*.db
+*.mv.db
+*.trace.db
+
+# ====================
+# 缓存 & 临时文件
+# ====================
+.cache/
+.gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+
+# Node.js（如果前端在同一仓库）
+node_modules/
+package-lock.json
+yarn.lock
+
+# ====================
+# 文档生成
+# ====================
+# Swagger/OpenAPI 生成的文档
+swagger-output/
+openapi-output/
+
+# JavaDoc
+javadoc/
+apidocs/
+
+# ====================
+# AI/RAG 相关
+# ====================
+# 向量数据库本地文件
+vector_store/
+embeddings/
+*.faiss
+*.pkl
+
+# 模型文件
+models/
+*.onnx
+*.bin
+*.safetensors
+
+# ====================
+# 其他
+# ====================
+# 本地开发脚本
+local-*.sh
+dev-*.sh
+run-local.sh
+
+# 备份文件
+*.orig
+*.backup

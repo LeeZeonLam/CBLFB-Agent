@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.fba.logi</groupId>
+        <artifactId>fba-logi-ai</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>fba-logi-agent</artifactId>
+    <packaging>jar</packaging>
+    <name>FBA LogiAI - Agent</name>
+    <description>Agent 模块：AI 智能体、RAG 检索、工具调用</description>
+
+    <dependencies>
+        <!-- 项目内部依赖 -->
+        <dependency>
+            <groupId>com.fba.logi</groupId>
+            <artifactId>fba-logi-infrastructure</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fba.logi</groupId>
+            <artifactId>fba-logi-domain</artifactId>
+        </dependency>
+
+        <!-- Spring Boot -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
+
+        <!-- Jackson JSON -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- LangChain4j -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-milvus</artifactId>
+        </dependency>
+    </dependencies>
+
+</project>

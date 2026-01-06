@@ -1,0 +1,66 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: fba-logi-writing-service
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:}
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 50MB
+
+# LLM 配置
+llm:
+  provider: zhipu
+  vision:
+    provider: zhipu_vision
+  zhipu:
+    api-key: ${ZHIPU_API_KEY:}
+    model: glm-4-flash
+    vision-model: glm-4v
+    embedding-model: embedding-2
+
+# 写作分析配置
+writing:
+  analysis:
+    max-text-length: 50000
+    default-dimensions:
+      - GRAMMAR_SPELLING
+      - STYLE_READABILITY
+      - CONTENT_LOGIC
+      - VOCABULARY
+      - STRUCTURE
+    dimension-weights:
+      GRAMMAR_SPELLING: 0.25
+      STYLE_READABILITY: 0.20
+      CONTENT_LOGIC: 0.25
+      VOCABULARY: 0.15
+      STRUCTURE: 0.15
+
+# 健康检查
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+# SpringDoc 配置
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+# 日志配置
+logging:
+  level:
+    com.fba.logi: DEBUG
+    com.fba.logi.writing: DEBUG

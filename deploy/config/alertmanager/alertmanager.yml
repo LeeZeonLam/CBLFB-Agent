@@ -1,0 +1,72 @@
+# AlertManager 配置文件
+global:
+  # 全局配置
+  resolve_timeout: 5m
+
+# 路由配置
+route:
+  # 默认接收器
+  receiver: 'default-receiver'
+  # 分组等待时间
+  group_wait: 30s
+  # 同一组告警的发送间隔
+  group_interval: 5m
+  # 重复告警发送间隔
+  repeat_interval: 4h
+  # 分组字段
+  group_by: ['alertname', 'severity', 'service']
+
+  # 子路由
+  routes:
+    # 严重告警立即发送
+    - match:
+        severity: critical
+      receiver: 'critical-receiver'
+      group_wait: 10s
+      repeat_interval: 1h
+
+    # LLM 相关告警
+    - match:
+        job: llm
+      receiver: 'llm-receiver'
+      group_wait: 1m
+
+# 告警抑制规则
+inhibit_rules:
+  # 当存在 critical 告警时，抑制同服务的 warning 告警
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'service']
+
+# 接收器配置
+receivers:
+  - name: 'default-receiver'
+    # Webhook（对接企业微信、钉钉等）
+    webhook_configs:
+      - url: 'http://alert-webhook:5001/webhook'
+        send_resolved: true
+
+  - name: 'critical-receiver'
+    webhook_configs:
+      - url: 'http://alert-webhook:5001/webhook/critical'
+        send_resolved: true
+
+  - name: 'llm-receiver'
+    webhook_configs:
+      - url: 'http://alert-webhook:5001/webhook/llm'
+        send_resolved: true
+
+  # 邮件接收器示例（需配置 SMTP）
+  # - name: 'email-receiver'
+  #   email_configs:
+  #     - to: 'admin@example.com'
+  #       from: 'alertmanager@example.com'
+  #       smarthost: 'smtp.example.com:587'
+  #       auth_username: 'alertmanager'
+  #       auth_password: 'password'
+
+# 模板配置
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'

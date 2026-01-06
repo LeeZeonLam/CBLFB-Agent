@@ -1,0 +1,123 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fba-logi-chat
+  namespace: fba-logi
+  labels:
+    app: fba-logi-chat
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fba-logi-chat
+  template:
+    metadata:
+      labels:
+        app: fba-logi-chat
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/port: "8081"
+    spec:
+      containers:
+        - name: chat
+          image: fba-logi-chat-service:v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+              name: http
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod"
+            - name: NACOS_SERVER_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: fba-logi-config
+                  key: nacos.server-addr
+            - name: DEEPSEEK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: fba-logi-secrets
+                  key: deepseek-api-key
+            - name: ZHIPU_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: fba-logi-secrets
+                  key: zhipu-api-key
+            - name: JAVA_OPTS
+              value: "-Xms512m -Xmx1g -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+            # Kafka
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: fba-logi-config
+                  key: kafka.bootstrap-servers
+            - name: KAFKA_CONSUMER_GROUP_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: fba-logi-config
+                  key: kafka.consumer.group-id
+            # SkyWalking Agent
+            - name: SW_AGENT_NAME
+              value: "fba-logi-chat"
+            - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
+              value: "skywalking-oap.fba-logi:11800"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          volumeMounts:
+            - name: logs
+              mountPath: /app/logs
+            - name: skywalking-agent
+              mountPath: /skywalking/agent
+      volumes:
+        - name: logs
+          emptyDir: {}
+        - name: skywalking-agent
+          emptyDir: {}
+      initContainers:
+        # SkyWalking Agent 初始化容器
+        - name: skywalking-agent-init
+          image: apache/skywalking-java-agent:9.0.0-java21
+          command: ['sh', '-c', 'cp -r /skywalking/agent/* /agent/']
+          volumeMounts:
+            - name: skywalking-agent
+              mountPath: /agent
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fba-logi-chat-svc
+  namespace: fba-logi
+  labels:
+    app: fba-logi-chat
+spec:
+  selector:
+    app: fba-logi-chat
+  ports:
+    - port: 8081
+      targetPort: 8081
+      name: http
+  type: ClusterIP

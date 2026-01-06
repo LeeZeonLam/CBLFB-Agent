@@ -1,0 +1,314 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # 1. PostgreSQL 主从复制 (1主1从)
+  # ==========================================
+  pg-primary:
+    image: postgres:15-alpine
+    container_name: fba-pg-primary
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fba_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fba_secret_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-fba_logi_db}
+      REPLICATION_USER: ${REPLICATION_USER:-replicator}
+      REPLICATION_PASSWORD: ${REPLICATION_PASSWORD:-replicator_pass}
+      TZ: Asia/Shanghai
+    ports:
+      - "7432:5432"
+    volumes:
+      - ./volumes/postgres/primary:/var/lib/postgresql/data
+      - ./config/postgres/primary/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./config/postgres/primary/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
+      - ./config/postgres/primary/init-replication.sh:/docker-entrypoint-initdb.d/init-replication.sh:ro
+      - ./config/postgres/primary/start-primary.sh:/start-primary.sh:ro
+    entrypoint: ["/bin/sh", "/start-primary.sh"]
+    networks:
+      - fba-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} && test -f /tmp/replication-user-ready"]
+      timeout: 5s
+      retries: 5
+
+  pg-replica:
+    image: postgres:15-alpine
+    container_name: fba-pg-replica
+    restart: always
+    environment:
+      PGUSER: ${REPLICATION_USER:-replicator}
+      PGPASSWORD: ${REPLICATION_PASSWORD:-replicator_pass}
+      TZ: Asia/Shanghai
+    ports:
+      - "7433:5432"
+    volumes:
+      - ./volumes/postgres/replica:/var/lib/postgresql/data
+      - ./config/postgres/replica/start-replica.sh:/start-replica.sh:ro
+    entrypoint: ["/bin/sh", "/start-replica.sh"]
+    depends_on:
+      pg-primary:
+        condition: service_healthy
+    networks:
+      - fba-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${PGUSER} -d fba_logi_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # 2. Redis 主从复制 (1主2从)
+  # ==========================================
+
+  redis-primary:
+    image: redis:7-alpine
+    container_name: fba-redis-primary
+    restart: always
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD:-redis_secret}
+    ports:
+      - "8378:6379"
+    volumes:
+      - ./volumes/redis/primary:/data
+    networks:
+      - fba-net
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-redis_secret} ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-replica-1:
+    image: redis:7-alpine
+    container_name: fba-redis-replica-1
+    restart: always
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD:-redis_secret}
+      --masterauth ${REDIS_PASSWORD:-redis_secret}
+      --replicaof redis-primary 6379
+    ports:
+      - "8380:6379"
+    volumes:
+      - ./volumes/redis/replica1:/data
+    depends_on:
+      redis-primary:
+        condition: service_healthy
+    networks:
+      - fba-net
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-redis_secret} ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-replica-2:
+    image: redis:7-alpine
+    container_name: fba-redis-replica-2
+    restart: always
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redis_secret}
+    command: >
+      redis-server
+      --appendonly yes
+      --requirepass ${REDIS_PASSWORD:-redis_secret}
+      --masterauth ${REDIS_PASSWORD:-redis_secret}
+      --replicaof redis-primary 6379
+    ports:
+      - "8381:6379"
+    volumes:
+      - ./volumes/redis/replica2:/data
+    depends_on:
+      redis-primary:
+        condition: service_healthy
+    networks:
+      - fba-net
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-redis_secret} ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # 3. Milvus 向量数据库 (Standalone)
+  #    - 存储后端: RustFS (替代 MinIO)
+  #    - 元数据: Etcd
+  #    - 管理界面: Attu
+  # ==========================================
+  milvus-etcd:
+    container_name: milvus-etcd
+    image: quay.io/coreos/etcd:v3.5.0
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - ./volumes/milvus/etcd:/etcd
+    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    networks:
+      - fba-net
+
+  milvus-rustfs:
+    container_name: milvus-rustfs
+    image: rustfs/rustfs:latest
+    environment:
+      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:-rustfsadmin}
+      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:-rustfsadmin}
+      RUSTFS_ADDRESS: ":9000"
+      RUSTFS_CONSOLE_ADDRESS: ":9001"
+      RUSTFS_EXTERNAL_ADDRESS: ":9000"
+    ports:
+      - "11000:9000"
+      - "11001:9001"
+    volumes:
+      - ./volumes/milvus/rustfs:/data
+    networks:
+      - fba-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/status"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  milvus-standalone:
+    container_name: milvus-standalone
+    image: milvusdb/milvus:v2.4.0
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: milvus-etcd:2379
+      MINIO_ADDRESS: milvus-rustfs:9000
+      MINIO_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY:-rustfsadmin}
+      MINIO_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_KEY:-rustfsadmin}
+      MINIO_BUCKET_NAME: milvus-bucket
+    volumes:
+      - ./volumes/milvus/milvus:/var/lib/milvus
+    ports:
+      - "21530:19530"
+      - "11091:9091"
+    depends_on:
+      - "milvus-etcd"
+      - "milvus-rustfs"
+    networks:
+      - fba-net
+
+  milvus-attu:
+    container_name: milvus-attu
+    image: zilliz/attu:v2.4.0
+    environment:
+      MILVUS_URL: milvus-standalone:19530
+    ports:
+      - "10000:3000"
+    depends_on:
+      - "milvus-standalone"
+    networks:
+      - fba-net
+
+  # ==========================================
+  # 4. Kafka 消息队列 (KRaft 模式，无需 ZooKeeper)
+  # ==========================================
+  kafka:
+    image: bitnami/kafka:3.7
+    container_name: fba-kafka
+    restart: always
+    ports:
+      - "11092:9092"
+      - "11094:9094"
+    environment:
+      # KRaft 模式配置
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      # 集群配置
+      - KAFKA_KRAFT_CLUSTER_ID=fba-logi-kafka-cluster
+      # 性能调优
+      - KAFKA_CFG_NUM_PARTITIONS=3
+      - KAFKA_CFG_DEFAULT_REPLICATION_FACTOR=1
+      - KAFKA_CFG_MIN_INSYNC_REPLICAS=1
+      - KAFKA_CFG_LOG_RETENTION_HOURS=168
+      - KAFKA_CFG_LOG_SEGMENT_BYTES=1073741824
+      - KAFKA_CFG_LOG_RETENTION_CHECK_INTERVAL_MS=300000
+      # 内存配置
+      - KAFKA_HEAP_OPTS=-Xmx1G -Xms1G
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./volumes/kafka/data:/bitnami/kafka
+    networks:
+      - fba-net
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Kafka UI 管理界面
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: fba-kafka-ui
+    restart: always
+    ports:
+      - "10089:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=fba-logi-cluster
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+      - DYNAMIC_CONFIG_ENABLED=true
+      - TZ=Asia/Shanghai
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - fba-net
+
+  # ==========================================
+  # 5. Nacos 服务注册与配置中心
+  # ==========================================
+  nacos:
+    image: nacos/nacos-server:v2.3.2
+    container_name: fba-nacos
+    restart: always
+    ports:
+      - "10848:8848"
+      - "11848:9848"
+    environment:
+      - MODE=standalone
+      - PREFER_HOST_MODE=hostname
+      - SPRING_DATASOURCE_PLATFORM=postgresql
+      - POSTGRESQL_SERVICE_HOST=pg-primary
+      - POSTGRESQL_SERVICE_PORT=5432
+      - POSTGRESQL_SERVICE_DB_NAME=nacos
+      - POSTGRESQL_SERVICE_USER=${POSTGRES_USER:-fba_admin}
+      - POSTGRESQL_SERVICE_PASSWORD=${POSTGRES_PASSWORD:-fba_secret_pass}
+      - NACOS_AUTH_ENABLE=true
+      - NACOS_AUTH_TOKEN=${NACOS_AUTH_TOKEN:-SecretKey012345678901234567890123456789012345678901234567890123456789}
+      - NACOS_AUTH_IDENTITY_KEY=serverIdentity
+      - NACOS_AUTH_IDENTITY_VALUE=security
+      - TZ=Asia/Shanghai
+      - JVM_XMS=256m
+      - JVM_XMX=512m
+    depends_on:
+      pg-primary:
+        condition: service_healthy
+    networks:
+      - fba-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8848/nacos/v1/console/health/liveness"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+
+networks:
+  fba-net:
+    driver: bridge

@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fba-logi-config
+  namespace: fba-logi
+  labels:
+    app: fba-logi
+data:
+  # Nacos 配置
+  nacos.server-addr: "nacos.fba-logi:8848"
+  nacos.namespace: "fba-logi"
+
+  # PostgreSQL 配置
+  postgres.host: "pg-primary.fba-logi"
+  postgres.port: "5432"
+  postgres.database: "fba_logi_db"
+  postgres.username: "fba_admin"
+
+  # Redis 配置
+  redis.host: "redis-primary.fba-logi"
+  redis.port: "6379"
+
+  # Milvus 配置
+  milvus.host: "milvus-standalone.fba-logi"
+  milvus.port: "19530"
+
+  # Kafka 配置
+  kafka.bootstrap-servers: "kafka-headless.fba-logi:9092"
+  kafka.consumer.group-id: "fba-logi-group"
+
+  # LLM 配置
+  llm.provider: "deepseek"
+  llm.deepseek.base-url: "https://api.deepseek.com"
+  llm.deepseek.model: "deepseek-chat"
+  llm.zhipu.model: "glm-4-flash"
+  llm.zhipu.embedding-model: "embedding-2"
+
+  # 日志配置
+  logging.level.root: "INFO"
+  logging.level.com.fba.logi: "DEBUG"

@@ -1,0 +1,198 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # 1. Prometheus - 指标采集
+  # ==========================================
+  prometheus:
+    image: prom/prometheus:v2.49.0
+    container_name: fba-prometheus
+    restart: always
+    ports:
+      - "11090:9090"
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./config/prometheus/rules:/etc/prometheus/rules:ro
+      - ./volumes/prometheus:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      - fba-net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ==========================================
+  # 2. Grafana - 可视化仪表盘
+  # ==========================================
+  grafana:
+    image: grafana/grafana:10.3.0
+    container_name: fba-grafana
+    restart: always
+    ports:
+      - "5000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin123}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/grafana/"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+    volumes:
+      - ./volumes/grafana:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - fba-net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ==========================================
+  # 3. SkyWalking OAP - 分布式追踪后端
+  # ==========================================
+  skywalking-oap:
+    image: apache/skywalking-oap-server:9.7.0
+    container_name: fba-skywalking-oap
+    restart: always
+    ports:
+      - "13800:11800"  # gRPC 端口（Agent 上报）
+      - "14800:12800"  # REST API 端口
+    environment:
+      SW_STORAGE: elasticsearch
+      SW_STORAGE_ES_CLUSTER_NODES: elasticsearch:9200
+      SW_HEALTH_CHECKER: default
+      SW_TELEMETRY: prometheus
+      SW_TELEMETRY_PROMETHEUS_PORT: 1234
+      TZ: Asia/Shanghai
+      JAVA_OPTS: "-Xms512m -Xmx1g"
+    volumes:
+      - ./config/skywalking/alarm-settings.yml:/skywalking/config/alarm-settings.yml:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - fba-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:12800/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ==========================================
+  # 4. SkyWalking UI - 追踪可视化
+  # ==========================================
+  skywalking-ui:
+    image: apache/skywalking-ui:9.7.0
+    container_name: fba-skywalking-ui
+    restart: always
+    ports:
+      - "10088:8080"
+    environment:
+      SW_OAP_ADDRESS: http://skywalking-oap:12800
+      TZ: Asia/Shanghai
+    depends_on:
+      - skywalking-oap
+    networks:
+      - fba-net
+
+  # ==========================================
+  # 5. Elasticsearch - SkyWalking 存储后端
+  # ==========================================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.17
+    container_name: fba-elasticsearch
+    restart: always
+    ports:
+      - "11200:9200"
+      - "11300:9300"
+    environment:
+      - discovery.type=single-node
+      - cluster.name=skywalking-cluster
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx1g"
+      - xpack.security.enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - ./volumes/elasticsearch:/usr/share/elasticsearch/data
+    networks:
+      - fba-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ==========================================
+  # 6. Loki - 日志聚合
+  # ==========================================
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: fba-loki
+    restart: always
+    ports:
+      - "5100:3100"
+    volumes:
+      - ./config/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - ./volumes/loki:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - fba-net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ==========================================
+  # 7. Promtail - 日志采集
+  # ==========================================
+  promtail:
+    image: grafana/promtail:2.9.4
+    container_name: fba-promtail
+    restart: always
+    volumes:
+      - ./config/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/log:/var/log:ro
+      - ./volumes/logs:/app/logs:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - fba-net
+
+  # ==========================================
+  # 8. AlertManager - 告警管理
+  # ==========================================
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: fba-alertmanager
+    restart: always
+    ports:
+      - "11093:9093"
+    volumes:
+      - ./config/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./volumes/alertmanager:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    networks:
+      - fba-net
+
+networks:
+  fba-net:
+    external: true

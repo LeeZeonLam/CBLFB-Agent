@@ -1,0 +1,59 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fba-logi-ingress
+  namespace: fba-logi
+  annotations:
+    kubernetes.io/ingress.class: "traefik"
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: fba-logi-cors@kubernetescrd
+spec:
+  rules:
+    - host: fba.local
+      http:
+        paths:
+          # 所有 API 请求通过 Gateway 路由
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: fba-logi-gateway-svc
+                port:
+                  number: 8080
+          # WebSocket 连接
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: fba-logi-chat-svc
+                port:
+                  number: 8081
+          # Actuator 端点（可选，用于监控）
+          - path: /actuator
+            pathType: Prefix
+            backend:
+              service:
+                name: fba-logi-gateway-svc
+                port:
+                  number: 8080
+---
+# CORS 中间件
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: fba-logi-cors
+  namespace: fba-logi
+spec:
+  headers:
+    accessControlAllowMethods:
+      - "GET"
+      - "POST"
+      - "PUT"
+      - "DELETE"
+      - "OPTIONS"
+    accessControlAllowHeaders:
+      - "*"
+    accessControlAllowOriginList:
+      - "*"
+    accessControlMaxAge: 86400
+    addVaryHeader: true

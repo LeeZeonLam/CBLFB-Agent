@@ -1,0 +1,115 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fba-logi-data
+  namespace: fba-logi
+  labels:
+    app: fba-logi-data
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fba-logi-data
+  template:
+    metadata:
+      labels:
+        app: fba-logi-data
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/actuator/prometheus"
+        prometheus.io/port: "8082"
+    spec:
+      containers:
+        - name: data
+          image: fba-logi-data-service:v1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8082
+              name: http
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod"
+            - name: NACOS_SERVER_ADDR
+              valueFrom:
+                configMapKeyRef:
+                  name: fba-logi-config
+                  key: nacos.server-addr
+            - name: POSTGRES_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: fba-logi-config
+                  key: postgres.host
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fba-logi-secrets
+                  key: postgres-password
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: fba-logi-config
+                  key: redis.host
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fba-logi-secrets
+                  key: redis-password
+            - name: JAVA_OPTS
+              value: "-Xms512m -Xmx1g -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+            # Kafka
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              valueFrom:
+                configMapKeyRef:
+                  name: fba-logi-config
+                  key: kafka.bootstrap-servers
+            - name: KAFKA_CONSUMER_GROUP_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: fba-logi-config
+                  key: kafka.consumer.group-id
+            # SkyWalking Agent
+            - name: SW_AGENT_NAME
+              value: "fba-logi-data"
+            - name: SW_AGENT_COLLECTOR_BACKEND_SERVICES
+              value: "skywalking-oap.fba-logi:11800"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8082
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8082
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fba-logi-data-svc
+  namespace: fba-logi
+  labels:
+    app: fba-logi-data
+spec:
+  selector:
+    app: fba-logi-data
+  ports:
+    - port: 8082
+      targetPort: 8082
+      name: http
+  type: ClusterIP
