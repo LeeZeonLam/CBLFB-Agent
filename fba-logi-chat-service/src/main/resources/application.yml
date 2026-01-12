@@ -34,6 +34,15 @@ llm:
     model: glm-4-flash
     embedding-model: embedding-2
 
+# 货拉拉开放平台配置
+huolala:
+  app-key: ${HUOLALA_APP_KEY:}
+  app-secret: ${HUOLALA_APP_SECRET:}
+  access-token: ${HUOLALA_ACCESS_TOKEN:}
+  base-url: https://openapi.huolala.cn
+  timeout: 10000
+  mock-enabled: ${HUOLALA_MOCK_ENABLED:true}
+
 # MyBatis-Plus 配置
 mybatis-plus:
   mapper-locations: classpath*:mapper/**/*.xml

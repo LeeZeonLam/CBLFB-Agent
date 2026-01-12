@@ -71,6 +71,18 @@ public class AgentSkillConfiguration {
                 "analyze_writing"
         );
 
+        // 物流追踪 Agent 的技能
+        skillRegistry.bindSkillsToAgent(
+                Constants.AgentType.LOGISTICS_TRACKER,
+                "track_huolala_order"         // 货拉拉物流追踪
+        );
+
+        // 订舱助手也可以使用物流追踪技能
+        skillRegistry.bindSkillsToAgent(
+                Constants.AgentType.ORDER_BOOKING,
+                "track_huolala_order"
+        );
+
         log.info("Agent 和 Skill 绑定配置完成");
         log.info("SkillRegistry 统计: {}", skillRegistry.getStats());
     }

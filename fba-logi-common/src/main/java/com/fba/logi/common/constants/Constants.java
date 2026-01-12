@@ -44,6 +44,8 @@ public final class Constants {
         public static final String ORDER_AUDITOR = "order_auditor";
         // 仓储域 Agent
         public static final String WAREHOUSE_OPS = "warehouse_ops";
+        // 物流域 Agent
+        public static final String LOGISTICS_TRACKER = "logistics_tracker";
         // 写作分析域 Agent
         public static final String WRITING_ANALYST = "writing_analyst";
     }
