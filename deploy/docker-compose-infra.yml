@@ -21,7 +21,8 @@ services:
       - ./volumes/postgres/primary:/var/lib/postgresql/data
       - ./config/postgres/primary/postgresql.conf:/etc/postgresql/postgresql.conf:ro
       - ./config/postgres/primary/pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
-      - ./config/postgres/primary/init-replication.sh:/docker-entrypoint-initdb.d/init-replication.sh:ro
+      - ./config/postgres/primary/init-replication.sh:/docker-entrypoint-initdb.d/01-init-replication.sh:ro
+      - ./config/postgres/primary/init-db.sql:/docker-entrypoint-initdb.d/02-init-db.sql:ro
       - ./config/postgres/primary/start-primary.sh:/start-primary.sh:ro
     entrypoint: ["/bin/sh", "/start-primary.sh"]
     networks:
@@ -138,13 +139,13 @@ services:
 
   # ==========================================
   # 3. Milvus 向量数据库 (Standalone)
-  #    - 存储后端: RustFS (替代 MinIO)
+  #    - 存储后端: RustFS
   #    - 元数据: Etcd
   #    - 管理界面: Attu
   # ==========================================
   milvus-etcd:
     container_name: milvus-etcd
-    image: quay.io/coreos/etcd:v3.5.0
+    image: quay.io/coreos/etcd:v3.5.15
     environment:
       - ETCD_AUTO_COMPACTION_MODE=revision
       - ETCD_AUTO_COMPACTION_RETENTION=1000
@@ -160,11 +161,13 @@ services:
     container_name: milvus-rustfs
     image: rustfs/rustfs:latest
     environment:
-      RUSTFS_ACCESS_KEY: ${RUSTFS_ACCESS_KEY:-rustfsadmin}
-      RUSTFS_SECRET_KEY: ${RUSTFS_SECRET_KEY:-rustfsadmin}
-      RUSTFS_ADDRESS: ":9000"
-      RUSTFS_CONSOLE_ADDRESS: ":9001"
-      RUSTFS_EXTERNAL_ADDRESS: ":9000"
+      - RUSTFS_VOLUMES=/data/rustfs{0..3}
+      - RUSTFS_ADDRESS=0.0.0.0:9000
+      - RUSTFS_CONSOLE_ADDRESS=0.0.0.0:9001
+      - RUSTFS_CONSOLE_ENABLE=true
+      - RUSTFS_EXTERNAL_ADDRESS=:9000
+      - RUSTFS_ACCESS_KEY=${RUSTFS_ACCESS_KEY:-rustfsadmin}
+      - RUSTFS_SECRET_KEY=${RUSTFS_SECRET_KEY:-rustfsadmin}
     ports:
       - "11000:9000"
       - "11001:9001"
@@ -173,14 +176,14 @@ services:
     networks:
       - fba-net
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/status"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
       interval: 30s
       timeout: 20s
       retries: 3
 
   milvus-standalone:
     container_name: milvus-standalone
-    image: milvusdb/milvus:v2.4.0
+    image: milvusdb/milvus:v2.4.13
     command: ["milvus", "run", "standalone"]
     environment:
       ETCD_ENDPOINTS: milvus-etcd:2379
@@ -201,7 +204,7 @@ services:
 
   milvus-attu:
     container_name: milvus-attu
-    image: zilliz/attu:v2.4.0
+    image: zilliz/attu:v2.4.6
     environment:
       MILVUS_URL: milvus-standalone:19530
     ports:
@@ -273,7 +276,7 @@ services:
   # 5. Nacos 服务注册与配置中心
   # ==========================================
   nacos:
-    image: nacos/nacos-server:v2.3.2
+    image: nacos/nacos-server:v2.4.3-slim
     container_name: fba-nacos
     restart: always
     ports:

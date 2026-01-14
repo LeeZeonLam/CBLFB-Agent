@@ -8,6 +8,9 @@ import com.fba.logi.domain.shipping.model.entity.Voyage;
 import com.fba.logi.domain.shipping.repository.IContainerRepository;
 import com.fba.logi.domain.shipping.repository.IVoyageRepository;
 import com.fba.logi.domain.shipping.service.IShippingService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -17,19 +20,14 @@ import java.util.List;
 /**
  * 船运服务实现
  */
+@Slf4j
+@Service
+@RequiredArgsConstructor
 public class ShippingServiceImpl implements IShippingService {
 
     private final IContainerRepository containerRepository;
     private final IVoyageRepository voyageRepository;
     private final IOrderRepository orderRepository;
-
-    public ShippingServiceImpl(IContainerRepository containerRepository,
-                               IVoyageRepository voyageRepository,
-                               IOrderRepository orderRepository) {
-        this.containerRepository = containerRepository;
-        this.voyageRepository = voyageRepository;
-        this.orderRepository = orderRepository;
-    }
 
     // ==================== 柜子操作 ====================
 

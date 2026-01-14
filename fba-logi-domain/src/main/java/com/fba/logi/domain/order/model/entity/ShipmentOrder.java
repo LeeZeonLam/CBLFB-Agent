@@ -71,6 +71,11 @@ public class ShipmentOrder {
     private String state;
 
     /**
+     * 渠道代码
+     */
+    private String channelCode;
+
+    /**
      * 渠道名称：美森快船、以星快船、盐田船等
      */
     private String channelName;
@@ -79,6 +84,11 @@ public class ShipmentOrder {
      * 装柜包装类型：LOOSE(散货)/PALLET(托盘)/FCL(整柜)
      */
     private String packagingType;
+
+    /**
+     * 驳回原因
+     */
+    private String rejectReason;
 
     // ==================== 地址信息 ====================
 
@@ -191,6 +201,16 @@ public class ShipmentOrder {
      * 更新时间
      */
     private LocalDateTime updateTime;
+
+    /**
+     * 货物入仓时间
+     */
+    private LocalDateTime receivedTime;
+
+    /**
+     * 材积录入完成时间
+     */
+    private LocalDateTime dimensionRecordedTime;
 
     /**
      * 预计到达时间
@@ -319,7 +339,7 @@ public class ShipmentOrder {
             throw new IllegalStateException("订单状态不允许审核");
         }
         this.state = Constants.OrderState.REJECTED;
-        this.remark = reason;
+        this.rejectReason = reason;
         this.updateTime = LocalDateTime.now();
     }
 
@@ -328,6 +348,7 @@ public class ShipmentOrder {
      */
     public void receive() {
         transitionTo(Constants.OrderState.RECEIVED);
+        this.receivedTime = LocalDateTime.now();
     }
 
     /**
@@ -335,6 +356,7 @@ public class ShipmentOrder {
      */
     public void recordDimension() {
         transitionTo(Constants.OrderState.DIMENSION_RECORDED);
+        this.dimensionRecordedTime = LocalDateTime.now();
     }
 
     /**

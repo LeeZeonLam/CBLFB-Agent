@@ -173,6 +173,16 @@ public final class Constants {
     }
 
     /**
+     * 客户地址类型
+     */
+    public static final class AddressType {
+        /** 商业地址 */
+        public static final String COMMERCIAL = "commercial";
+        /** 住宅地址 */
+        public static final String RESIDENTIAL = "residential";
+    }
+
+    /**
      * 柜型
      */
     public static final class ContainerType {

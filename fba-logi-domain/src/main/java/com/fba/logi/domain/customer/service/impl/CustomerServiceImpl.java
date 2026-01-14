@@ -6,6 +6,9 @@ import com.fba.logi.domain.customer.model.entity.Customer;
 import com.fba.logi.domain.customer.model.entity.CustomerAddress;
 import com.fba.logi.domain.customer.repository.ICustomerRepository;
 import com.fba.logi.domain.customer.service.ICustomerService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,13 +16,12 @@ import java.util.List;
 /**
  * 客户服务实现
  */
+@Slf4j
+@Service
+@RequiredArgsConstructor
 public class CustomerServiceImpl implements ICustomerService {
 
     private final ICustomerRepository customerRepository;
-
-    public CustomerServiceImpl(ICustomerRepository customerRepository) {
-        this.customerRepository = customerRepository;
-    }
 
     // ==================== 客户管理 ====================
 
