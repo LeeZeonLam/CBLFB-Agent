@@ -127,6 +127,43 @@ public class ShipmentOrder {
      */
     private String deliveryWarehouseCode;
 
+    /**
+     * 拼柜仓库代码（国内拼柜仓库）
+     */
+    private String consolidationWarehouseCode;
+
+    // ==================== 员工关联 ====================
+
+    /**
+     * 客服 ID
+     */
+    private Long customerServiceId;
+
+    /**
+     * 客服姓名（冗余）
+     */
+    private String customerServiceName;
+
+    /**
+     * 操作员 ID
+     */
+    private Long operatorId;
+
+    /**
+     * 操作员姓名（冗余）
+     */
+    private String operatorName;
+
+    /**
+     * 财务 ID
+     */
+    private Long financeId;
+
+    /**
+     * 财务姓名（冗余）
+     */
+    private String financeName;
+
     // ==================== 货物信息 ====================
 
     /**

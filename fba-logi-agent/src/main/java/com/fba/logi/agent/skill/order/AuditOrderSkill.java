@@ -83,10 +83,12 @@ public class AuditOrderSkill extends AbstractSkill {
             reason = String.join("; ", issues);
         }
 
-        // TODO: 调用真实的审核服务
-        // orderService.auditOrder(orderId, approved, reason);
+        try {
+            // 调用真实的审核服务
+            var order = orderService.getOrderByNo(orderNo);
+            orderService.auditOrder(order.getOrderId(), approved, reason);
 
-        StringBuilder message = new StringBuilder();
+            StringBuilder message = new StringBuilder();
         if (approved) {
             message.append("✅ 订单审核通过\n\n");
             message.append("订单号: ").append(orderNo).append("\n");
@@ -111,11 +113,15 @@ public class AuditOrderSkill extends AbstractSkill {
 
         log.info("订单审核完成: {} - {}", orderNo, approved ? "通过" : "驳回");
 
-        return SkillResult.success(message.toString(), Map.of(
-                "orderNo", orderNo,
-                "approved", approved,
-                "reason", reason,
-                "checkItems", checkItems
-        ));
+            return SkillResult.success(message.toString(), Map.of(
+                    "orderNo", orderNo,
+                    "approved", approved,
+                    "reason", reason,
+                    "checkItems", checkItems
+            ));
+        } catch (Exception e) {
+            log.error("订单审核失败: {}", e.getMessage(), e);
+            return SkillResult.failure("订单审核失败: " + e.getMessage(), "AUDIT_FAILED");
+        }
     }
 }

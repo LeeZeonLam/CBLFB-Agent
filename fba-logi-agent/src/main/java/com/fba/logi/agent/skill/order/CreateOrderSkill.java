@@ -97,23 +97,27 @@ public class CreateOrderSkill extends AbstractSkill {
                 .userId(context.getUserId())
                 .build();
 
-        // TODO: 调用真实的订单服务
-        // String orderId = orderService.createOrder(order);
+        try {
+            // 调用真实的订单服务
+            Long orderId = orderService.createOrder(order);
+            String orderNo = order.getOrderNo();
 
-        // 模拟返回
-        String orderNo = "FBA" + System.currentTimeMillis();
+            log.info("订单创建成功: {}, ID: {}", orderNo, orderId);
 
-        log.info("订单创建成功: {}", orderNo);
-
-        return SkillResult.success(
-                String.format("订单创建成功！订单号: %s\n类型: %s\n目的地: %s\n重量: %.2fKG\n件数: %d件",
-                        orderNo, orderType, destCountry, totalWeight, totalPieces),
-                Map.of(
-                        "orderNo", orderNo,
-                        "orderType", orderType,
-                        "destCountry", destCountry,
-                        "status", "draft"
-                )
-        ).withNextSkill("query_shipping_rate");
+            return SkillResult.success(
+                    String.format("订单创建成功！订单号: %s\n类型: %s\n目的地: %s\n重量: %.2fKG\n件数: %d件",
+                            orderNo, orderType, destCountry, totalWeight, totalPieces),
+                    Map.of(
+                            "orderId", orderId,
+                            "orderNo", orderNo,
+                            "orderType", orderType,
+                            "destCountry", destCountry,
+                            "status", "draft"
+                    )
+            ).withNextSkill("query_shipping_rate");
+        } catch (Exception e) {
+            log.error("订单创建失败: {}", e.getMessage(), e);
+            return SkillResult.failure("订单创建失败: " + e.getMessage(), "CREATE_FAILED");
+        }
     }
 }

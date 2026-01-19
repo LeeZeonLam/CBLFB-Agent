@@ -51,6 +51,17 @@ public class ShipmentOrderPO {
     private String deliveryAddressDetail;
     private String deliveryWarehouseCode;
 
+    // 拼柜仓库
+    private String consolidationWarehouseCode;
+
+    // 员工关联
+    private Long customerServiceId;
+    private String customerServiceName;
+    private Long operatorId;
+    private String operatorName;
+    private Long financeId;
+    private String financeName;
+
     // 货物信息
     private BigDecimal totalWeight;
     private BigDecimal totalVolume;

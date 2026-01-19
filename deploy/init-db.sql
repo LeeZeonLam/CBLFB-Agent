@@ -137,6 +137,15 @@ CREATE TABLE IF NOT EXISTS shipment_order (
     delivery_address_type VARCHAR(16),
     delivery_address_detail TEXT,
     delivery_warehouse_code VARCHAR(32),
+    -- 拼柜仓库（国内拼柜仓库）
+    consolidation_warehouse_code VARCHAR(32),
+    -- 员工关联
+    customer_service_id BIGINT,
+    customer_service_name VARCHAR(64),
+    operator_id BIGINT,
+    operator_name VARCHAR(64),
+    finance_id BIGINT,
+    finance_name VARCHAR(64),
     -- 货物信息
     total_weight DECIMAL(10,2),
     total_volume DECIMAL(10,4),
@@ -167,6 +176,76 @@ CREATE INDEX IF NOT EXISTS idx_shipment_order_customer_id ON shipment_order(cust
 CREATE INDEX IF NOT EXISTS idx_shipment_order_state ON shipment_order(state);
 CREATE INDEX IF NOT EXISTS idx_shipment_order_container_id ON shipment_order(container_id);
 
+-- 产品表（产品主数据）
+CREATE TABLE IF NOT EXISTS product (
+    id BIGSERIAL PRIMARY KEY,
+    product_id BIGINT NOT NULL UNIQUE,
+    sku VARCHAR(64) NOT NULL UNIQUE,
+    asin VARCHAR(32),
+    fnsku VARCHAR(32),
+    product_name VARCHAR(256) NOT NULL,
+    product_name_en VARCHAR(256),
+    description TEXT,
+    hs_code VARCHAR(32),
+    -- 尺寸重量
+    unit_weight DECIMAL(10,3),
+    length DECIMAL(10,2),
+    width DECIMAL(10,2),
+    height DECIMAL(10,2),
+    -- 价格
+    unit_price DECIMAL(12,2),
+    currency VARCHAR(8) DEFAULT 'USD',
+    -- 敏感货标识
+    has_battery BOOLEAN DEFAULT FALSE,
+    battery_type VARCHAR(32),
+    is_liquid BOOLEAN DEFAULT FALSE,
+    is_powder BOOLEAN DEFAULT FALSE,
+    is_magnetic BOOLEAN DEFAULT FALSE,
+    is_dangerous BOOLEAN DEFAULT FALSE,
+    -- 其他
+    origin_country VARCHAR(8),
+    image_url VARCHAR(512),
+    status VARCHAR(16) NOT NULL DEFAULT 'active',
+    remark VARCHAR(256),
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_product_asin ON product(asin);
+CREATE INDEX IF NOT EXISTS idx_product_fnsku ON product(fnsku);
+CREATE INDEX IF NOT EXISTS idx_product_status ON product(status);
+
+-- 订单产品关联表（订单中的产品明细）
+CREATE TABLE IF NOT EXISTS order_product (
+    id BIGSERIAL PRIMARY KEY,
+    order_id BIGINT NOT NULL,
+    product_id BIGINT NOT NULL,
+    sku VARCHAR(64) NOT NULL,
+    product_name VARCHAR(256),
+    quantity INT NOT NULL DEFAULT 1,
+    unit_price DECIMAL(12,2),
+    currency VARCHAR(8) DEFAULT 'USD',
+    -- 冗余尺寸重量（下单时快照）
+    unit_weight DECIMAL(10,3),
+    length DECIMAL(10,2),
+    width DECIMAL(10,2),
+    height DECIMAL(10,2),
+    -- 敏感货标识
+    has_battery BOOLEAN DEFAULT FALSE,
+    is_liquid BOOLEAN DEFAULT FALSE,
+    is_powder BOOLEAN DEFAULT FALSE,
+    is_magnetic BOOLEAN DEFAULT FALSE,
+    -- 其他
+    hs_code VARCHAR(32),
+    remark VARCHAR(256),
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_order_product_order_id ON order_product(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_product_product_id ON order_product(product_id);
+CREATE INDEX IF NOT EXISTS idx_order_product_sku ON order_product(sku);
+
 -- 仓储域表结构
 
 -- 托盘表
@@ -185,6 +264,52 @@ CREATE TABLE IF NOT EXISTS pallet (
 );
 
 CREATE INDEX IF NOT EXISTS idx_pallet_order_id ON pallet(order_id);
+
+-- 纸箱表
+CREATE TABLE IF NOT EXISTS carton (
+    id BIGSERIAL PRIMARY KEY,
+    carton_id BIGINT NOT NULL UNIQUE,
+    carton_no VARCHAR(32) NOT NULL UNIQUE,
+    order_id BIGINT NOT NULL,
+    pallet_id BIGINT,
+    fba_label VARCHAR(64),
+    length DECIMAL(10,2),
+    width DECIMAL(10,2),
+    height DECIMAL(10,2),
+    weight DECIMAL(10,2),
+    sku VARCHAR(64),
+    quantity INT DEFAULT 1,
+    status VARCHAR(16) NOT NULL DEFAULT 'pending',
+    has_sensitive BOOLEAN DEFAULT FALSE,
+    need_special_handle BOOLEAN DEFAULT FALSE,
+    special_handle_note VARCHAR(256),
+    remark VARCHAR(256),
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_carton_order_id ON carton(order_id);
+CREATE INDEX IF NOT EXISTS idx_carton_pallet_id ON carton(pallet_id);
+
+-- 库位表
+CREATE TABLE IF NOT EXISTS warehouse_location (
+    id BIGSERIAL PRIMARY KEY,
+    location_id BIGINT NOT NULL UNIQUE,
+    location_code VARCHAR(32) NOT NULL UNIQUE,
+    warehouse_code VARCHAR(32) NOT NULL,
+    zone VARCHAR(8),
+    row VARCHAR(8),
+    col VARCHAR(8),
+    level VARCHAR(8),
+    location_type VARCHAR(16) NOT NULL DEFAULT 'PALLET',
+    status VARCHAR(16) NOT NULL DEFAULT 'AVAILABLE',
+    current_pallet_id BIGINT,
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_warehouse_location_warehouse_code ON warehouse_location(warehouse_code);
+CREATE INDEX IF NOT EXISTS idx_warehouse_location_status ON warehouse_location(status);
 
 -- 材积记录表
 CREATE TABLE IF NOT EXISTS dimension_record (
@@ -256,6 +381,46 @@ CREATE TABLE IF NOT EXISTS voyage (
 
 CREATE INDEX IF NOT EXISTS idx_voyage_status ON voyage(status);
 CREATE INDEX IF NOT EXISTS idx_voyage_estimated_departure ON voyage(estimated_departure);
+
+-- 报关单表
+CREATE TABLE IF NOT EXISTS customs_declaration (
+    id BIGSERIAL PRIMARY KEY,
+    declaration_id BIGINT NOT NULL UNIQUE,
+    declaration_no VARCHAR(32) NOT NULL UNIQUE,
+    -- 关联信息
+    container_id BIGINT,
+    container_no VARCHAR(32),
+    voyage_id BIGINT,
+    -- 报关信息
+    declaration_type VARCHAR(16) NOT NULL DEFAULT 'EXPORT',
+    customs_port VARCHAR(64),
+    broker_name VARCHAR(128),
+    broker_contact VARCHAR(64),
+    broker_phone VARCHAR(32),
+    -- 状态
+    status VARCHAR(16) NOT NULL DEFAULT 'pending',
+    -- 申报信息
+    declared_value DECIMAL(12,2),
+    currency VARCHAR(8) DEFAULT 'USD',
+    declared_weight DECIMAL(10,2),
+    declared_pieces INT,
+    hs_codes VARCHAR(512),
+    goods_description TEXT,
+    -- 文件和备注
+    document_urls TEXT,
+    inspection_reason VARCHAR(256),
+    reject_reason VARCHAR(256),
+    remark VARCHAR(256),
+    -- 时间节点
+    declared_time TIMESTAMP,
+    cleared_time TIMESTAMP,
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_customs_declaration_container_id ON customs_declaration(container_id);
+CREATE INDEX IF NOT EXISTS idx_customs_declaration_voyage_id ON customs_declaration(voyage_id);
+CREATE INDEX IF NOT EXISTS idx_customs_declaration_status ON customs_declaration(status);
 
 -- 客户域表结构
 
@@ -365,6 +530,26 @@ CREATE TABLE IF NOT EXISTS delivery_warehouse (
     update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 员工表
+CREATE TABLE IF NOT EXISTS employee (
+    id BIGSERIAL PRIMARY KEY,
+    employee_id BIGINT NOT NULL UNIQUE,
+    employee_no VARCHAR(32) NOT NULL UNIQUE,
+    name VARCHAR(64) NOT NULL,
+    role VARCHAR(32) NOT NULL,
+    department VARCHAR(64),
+    phone VARCHAR(32),
+    email VARCHAR(128),
+    status VARCHAR(16) NOT NULL DEFAULT 'active',
+    remark VARCHAR(256),
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_employee_role ON employee(role);
+CREATE INDEX IF NOT EXISTS idx_employee_department ON employee(department);
+CREATE INDEX IF NOT EXISTS idx_employee_status ON employee(status);
+
 -- 渠道表
 CREATE TABLE IF NOT EXISTS shipping_channel (
     id BIGSERIAL PRIMARY KEY,
@@ -406,6 +591,8 @@ COMMENT ON TABLE award IS '奖品表';
 COMMENT ON TABLE strategy_rule IS '策略规则表';
 COMMENT ON TABLE shipment_order IS '发货订单表';
 COMMENT ON TABLE pallet IS '托盘表';
+COMMENT ON TABLE carton IS '纸箱表';
+COMMENT ON TABLE warehouse_location IS '库位表';
 COMMENT ON TABLE dimension_record IS '材积记录表';
 COMMENT ON TABLE container IS '集装箱表';
 COMMENT ON TABLE voyage IS '航次表';
@@ -415,6 +602,10 @@ COMMENT ON TABLE fba_warehouse IS 'FBA/AWD仓库表';
 COMMENT ON TABLE third_party_warehouse IS '第三方海外仓表';
 COMMENT ON TABLE delivery_warehouse IS '交货仓库表';
 COMMENT ON TABLE shipping_channel IS '渠道表';
+COMMENT ON TABLE employee IS '员工表';
+COMMENT ON TABLE customs_declaration IS '报关单表';
+COMMENT ON TABLE product IS '产品表';
+COMMENT ON TABLE order_product IS '订单产品关联表';
 
 -- ==================== 初始化基础数据 ====================
 
@@ -481,3 +672,18 @@ VALUES
     (2, 1, 'RESIDENTIAL', '洛杉矶住宅', 'John Zhang', NULL, '5678 Residential Ave', 'Apt 2B', 'Los Angeles', 'CA', '90002', 'US', '+1-310-555-5678', TRUE),
     (3, 2, 'COMMERCIAL', '纽约办公室', 'Mike Li', 'GZ Trading Inc.', '9012 Business Blvd', NULL, 'New York', 'NY', '10001', 'US', '+1-212-555-9012', TRUE)
 ON CONFLICT (address_id) DO NOTHING;
+
+-- 示例员工数据
+INSERT INTO employee (employee_id, employee_no, name, role, department, phone, email, status, remark)
+VALUES
+    (1, 'E20240001', '陈小明', 'customer_service', 'customer_service_dept', '13900139001', 'chenxm@example.com', 'active', '资深客服'),
+    (2, 'E20240002', '林小红', 'customer_service', 'customer_service_dept', '13900139002', 'linxh@example.com', 'active', '客服组长'),
+    (3, 'E20240003', '王大力', 'operator', 'operations_dept', '13900139003', 'wangdl@example.com', 'active', '操作主管'),
+    (4, 'E20240004', '李小华', 'operator', 'operations_dept', '13900139004', 'lixh@example.com', 'active', '操作员'),
+    (5, 'E20240005', '张财务', 'finance', 'finance_dept', '13900139005', 'zhangcw@example.com', 'active', '财务主管'),
+    (6, 'E20240006', '刘会计', 'finance', 'finance_dept', '13900139006', 'liukj@example.com', 'active', '会计'),
+    (7, 'E20240007', '赵仓管', 'warehouse_staff', 'warehouse_dept', '13900139007', 'zhaocg@example.com', 'active', '仓库主管'),
+    (8, 'E20240008', '钱仓员', 'warehouse_staff', 'warehouse_dept', '13900139008', 'qiancy@example.com', 'active', '仓库员工'),
+    (9, 'E20240009', '孙经理', 'manager', 'management', '13900139009', 'sunjl@example.com', 'active', '运营经理'),
+    (10, 'E20240010', '周总监', 'manager', 'management', '13900139010', 'zhouzj@example.com', 'active', '物流总监')
+ON CONFLICT (employee_no) DO NOTHING;

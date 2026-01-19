@@ -228,4 +228,62 @@ public final class Constants {
         public static final String AWD = "awd";
     }
 
+    /**
+     * 员工状态
+     */
+    public static final class EmployeeStatus {
+        /** 活跃 */
+        public static final String ACTIVE = "active";
+        /** 停用 */
+        public static final String INACTIVE = "inactive";
+    }
+
+    /**
+     * 员工角色
+     */
+    public static final class EmployeeRole {
+        /** 客服 */
+        public static final String CUSTOMER_SERVICE = "customer_service";
+        /** 操作员 */
+        public static final String OPERATOR = "operator";
+        /** 财务 */
+        public static final String FINANCE = "finance";
+        /** 仓库员工 */
+        public static final String WAREHOUSE_STAFF = "warehouse_staff";
+        /** 管理员 */
+        public static final String MANAGER = "manager";
+    }
+
+    /**
+     * 部门
+     */
+    public static final class Department {
+        /** 客服部 */
+        public static final String CUSTOMER_SERVICE = "customer_service_dept";
+        /** 操作部 */
+        public static final String OPERATIONS = "operations_dept";
+        /** 财务部 */
+        public static final String FINANCE = "finance_dept";
+        /** 仓储部 */
+        public static final String WAREHOUSE = "warehouse_dept";
+        /** 管理层 */
+        public static final String MANAGEMENT = "management";
+    }
+
+    /**
+     * 报关状态
+     */
+    public static final class CustomsStatus {
+        /** 待报关 */
+        public static final String PENDING = "pending";
+        /** 报关中 */
+        public static final String PROCESSING = "processing";
+        /** 已放行 */
+        public static final String CLEARED = "cleared";
+        /** 查验中 */
+        public static final String INSPECTING = "inspecting";
+        /** 已退回 */
+        public static final String REJECTED = "rejected";
+    }
+
 }

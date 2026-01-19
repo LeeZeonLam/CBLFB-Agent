@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 /**
  * 仓库库位实体
  */
@@ -42,7 +44,7 @@ public class WarehouseLocation {
     /**
      * 列号
      */
-    private String column;
+    private String col;
 
     /**
      * 层号
@@ -65,7 +67,12 @@ public class WarehouseLocation {
     private Integer currentWeight;
 
     /**
-     * 状态：空闲/占用/锁定
+     * 当前托盘 ID
+     */
+    private Long currentPalletId;
+
+    /**
+     * 状态：AVAILABLE/OCCUPIED/RESERVED/DISABLED
      */
     private String status;
 
@@ -85,12 +92,22 @@ public class WarehouseLocation {
     private String remark;
 
     /**
+     * 创建时间
+     */
+    private LocalDateTime createTime;
+
+    /**
+     * 更新时间
+     */
+    private LocalDateTime updateTime;
+
+    /**
      * 获取完整库位编号
      * 格式：仓库-区域-排-列-层
      */
     public String getFullLocationCode() {
         return String.format("%s-%s-%s-%s-%s",
-                warehouseCode, zone, row, column, level);
+                warehouseCode, zone, row, col, level);
     }
 
     /**
